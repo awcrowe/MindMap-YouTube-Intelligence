@@ -1,0 +1,20 @@
+MindMap-YouTube-Intelligence/
+├── README.md
+├── LICENSE
+├── CHANGELOG.md
+├── .gitignore
+├── docs/
+│   ├── Home.md
+│   ├── Standalone-Mode.md
+│   ├── VPS-Setup.md
+│   ├── Client-Server-Mode.md
+│   ├── API-Reference.md
+│   ├── Troubleshooting.md
+│   └── Security.md
+└── src/
+    ├── main.py
+    ├── requirements.txt
+    ├── install.sh
+    ├── .env.example
+    └── client/
+        └── index.html
