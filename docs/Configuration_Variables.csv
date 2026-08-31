@@ -1,0 +1,5 @@
+Environment Variable,Description
+API_TOKEN,Bearer token for API calls (auto‑generated)
+DEEPSEEK_API_KEY,Your DeepSeek API key (get at platform.deepseek.com)
+MAX_WORKERS,Parallel transcript fetchers (default 3)
+RATE_DELAY,Seconds between YouTube requests (default 1.5)
