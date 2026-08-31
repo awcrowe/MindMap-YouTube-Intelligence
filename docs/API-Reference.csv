@@ -1,0 +1,8 @@
+Endpoint,Description
+GET /health,Public health check
+POST /transcript/single,Fetch + cache a single transcript
+POST /batch/submit,Submit a batch of videos for analysis
+GET /batch/status/{job_id},Poll job progress
+GET /cache/stats,Cache statistics
+DELETE /cache/video/{video_id},Invalidate cache
+GET /aggregate/insights,Generate aggregate psychographic report
