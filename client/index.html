@@ -1,1 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindMap — YouTube Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─────────────────────────────────────────────────── */
+:root {
+  --bg:       #07090f;
+  --s0:       #0d1117;
+  --s1:       #111823;
+  --s2:       #17202e;
+  --border:   #1e2d42;
+  --border2:  #243448;
+  --gold:     #e8a838;
+  --gold-dim: #7c4f0f;
+  --gold-glow:rgba(232,168,56,0.15);
+  --teal:     #2dd4bf;
+  --rose:     #fb7185;
+  --indigo:   #818cf8;
+  --lime:     #84cc16;
+  --sky:      #38bdf8;
+  --text:     #dde4f0;
+  --dim:      #5a7090;
+  --muted:    #253347;
+  --r:        10px;
+  --r-sm:     6px;
+}
+/* ─── RESET & BASE ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 0%, rgba(232,168,56,.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 100%, rgba(45,212,191,.05) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+#app { position: relative; z-index: 1; }
+.container { max-width: 1380px; margin: 0 auto; padding: 0 24px; }
+.screen { display: none; }
+.screen.active { display: block; }
+/* ─── LANDING / AUTH ─────────────────────────────────────────── */
+#landing {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 0; padding: 40px 24px;
+}
+.landing-logo {
+  font-family: 'Instrument Serif', serif;
+  font-size: clamp(52px, 10vw, 96px); font-style: italic;
+  color: var(--gold); line-height: 1; letter-spacing: -2px;
+  text-shadow: 0 0 60px var(--gold-glow); margin-bottom: 12px;
+}
+.landing-sub {
+  font-size: 11px; letter-spacing: .25em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 56px;
+}
+.auth-panel {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 16px; padding: 36px 40px;
+  width: min(480px, 100%); display: flex; flex-direction: column; gap: 14px;
+}
+.auth-panel h2 { font-family: 'Instrument Serif', serif; font-size: 22px; font-style: italic; color: var(--text); margin-bottom: 4px; }
+.auth-panel p { color: var(--dim); font-size: 12px; line-height: 1.6; margin-bottom: 8px; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 13px 24px; border: none; border-radius: var(--r-sm);
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  cursor: pointer; transition: all .2s; text-decoration: none; letter-spacing: .03em;
+}
+.btn-primary { background: var(--gold); color: #000; font-weight: 500; }
+.btn-primary:hover { background: #f0b84a; transform: translateY(-1px); box-shadow: 0 4px 20px var(--gold-glow); }
+.btn-ghost { background: var(--s2); color: var(--text); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--border); border-color: var(--dim); }
+.btn-outline { background: transparent; color: var(--gold); border: 1px solid var(--gold-dim); }
+.btn-outline:hover { background: var(--gold-glow); }
+.btn-sm { padding: 7px 14px; font-size: 11px; }
+.btn-danger { background: var(--rose); color: #fff; }
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.file-drop {
+  border: 1px dashed var(--border2); border-radius: var(--r-sm);
+  padding: 24px; text-align: center; cursor: pointer;
+  transition: all .2s; color: var(--dim); font-size: 12px; position: relative;
+}
+.file-drop:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+.file-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.file-drop .drop-icon { font-size: 28px; margin-bottom: 8px; }
+/* ─── TOPBAR ─────────────────────────────────────────────────── */
+#topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(7,9,15,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 56px;
+}
+.topbar-brand { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px; color: var(--gold); letter-spacing: -0.5px; }
+.topbar-meta { font-size: 11px; color: var(--dim); margin-right: auto; }
+.time-tabs {
+  display: flex; gap: 2px;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 3px;
+}
+.tab-btn {
+  padding: 5px 14px; border: none; background: transparent;
+  color: var(--dim); font-family: 'DM Mono', monospace; font-size: 11px;
+  cursor: pointer; border-radius: 4px; transition: all .15s;
+}
+.tab-btn.active { background: var(--gold); color: #000; font-weight: 500; }
+.tab-btn:hover:not(.active) { color: var(--text); }
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 4px;
+}
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #000; font-weight: 700; overflow: hidden; }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.user-name { font-size: 11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ─── DASHBOARD GRID ─────────────────────────────────────────── */
+#dashboard { padding: 24px 0 80px; }
+.section-head {
+  font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 14px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.grid { display: grid; gap: 14px; }
+.g4 { grid-template-columns: repeat(4,1fr); }
+.g3 { grid-template-columns: repeat(3,1fr); }
+.g2 { grid-template-columns: repeat(2,1fr); }
+.g21 { grid-template-columns: 2fr 1fr; }
+.g12 { grid-template-columns: 1fr 2fr; }
+.g13 { grid-template-columns: 1fr 3fr; }
+.span2 { grid-column: span 2; }
+.span3 { grid-column: span 3; }
+.card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px;
+  position: relative; overflow: hidden;
+  animation: fadeUp .4s ease both;
+}
+.card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232,168,56,.2), transparent);
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.card-label {
+  font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-label .dot { width: 5px; height: 5px; border-radius: 50%; }
+.kpi-val { font-family: 'Instrument Serif', serif; font-size: 42px; line-height: 1; color: var(--gold); }
+.kpi-sub { font-size: 11px; color: var(--dim); margin-top: 6px; }
+.kpi-change { font-size: 11px; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; }
+.up { color: var(--lime); } .dn { color: var(--rose); }
+.accent-teal  .kpi-val { color: var(--teal); }
+.accent-rose  .kpi-val { color: var(--rose); }
+.accent-indigo .kpi-val { color: var(--indigo); }
+.accent-sky   .kpi-val { color: var(--sky); }
+.card-top-border-gold   { border-top: 2px solid var(--gold); }
+.card-top-border-teal   { border-top: 2px solid var(--teal); }
+.card-top-border-rose   { border-top: 2px solid var(--rose); }
+.card-top-border-indigo { border-top: 2px solid var(--indigo); }
+.card-top-border-sky    { border-top: 2px solid var(--sky); }
+.heatmap-outer { overflow-x: auto; }
+.heatmap-labels {
+  display: flex; gap: 0;
+  font-size: 9px; color: var(--dim);
+  margin-bottom: 3px; min-width: 700px;
+}
+.hm-label { flex: 1; }
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(53, 1fr);
+  gap: 2px; min-width: 700px;
+}
+.hm-cell {
+  aspect-ratio: 1; border-radius: 2px;
+  cursor: pointer; transition: transform .1s;
+  background: var(--muted);
+}
+.hm-cell:hover { transform: scale(1.5); z-index: 10; }
+.donut-wrap { position: relative; width: 180px; height: 180px; margin: 0 auto; }
+.donut-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
+}
+.donut-num { font-family: 'Instrument Serif', serif; font-size: 28px; color: var(--text); }
+.donut-lbl { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+.ch-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 0; border-bottom: 1px solid var(--border);
+}
+.ch-row:last-child { border-bottom: none; }
+.ch-rank { font-size: 10px; color: var(--muted); width: 16px; text-align: right; flex-shrink: 0; }
+.ch-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-bar-bg { width: 72px; height: 3px; background: var(--muted); border-radius: 2px; flex-shrink: 0; }
+.ch-bar-fill { height: 100%; background: var(--gold); border-radius: 2px; }
+.ch-n { font-size: 11px; color: var(--gold); width: 30px; text-align: right; flex-shrink: 0; }
+.pm-row { margin-bottom: 14px; }
+.pm-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.pm-name { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+.pm-pct { font-family: 'Instrument Serif', serif; font-size: 18px; color: var(--text); }
+.pm-track { height: 5px; background: var(--s0); border-radius: 3px; }
+.pm-fill  { height: 100%; border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+.pm-curiosity  { background: var(--indigo); }
+.pm-political  { background: var(--rose); }
+.pm-escapism   { background: var(--teal); }
+.pm-nocturnal  { background: var(--sky); }
+.insight-box {
+  background: linear-gradient(135deg, rgba(232,168,56,.04), rgba(45,212,191,.03));
+  border: 1px solid rgba(232,168,56,.2);
+  border-radius: var(--r); padding: 20px 24px;
+  font-size: 13px; line-height: 1.8; color: var(--dim);
+  position: relative; overflow: hidden;
+}
+.insight-box::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: linear-gradient(to bottom, var(--gold), var(--teal));
+}
+.insight-box strong { color: var(--gold); }
+.insight-box em { color: var(--teal); font-style: normal; }
+.insight-cursor { display: inline-block; width: 2px; height: 14px; background: var(--gold); margin-left: 2px; animation: blink 1s step-end infinite; vertical-align: middle; }
+@keyframes blink { 50% { opacity: 0; } }
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(232,168,56,.1); border: 1px solid rgba(232,168,56,.25);
+  border-radius: 4px; padding: 3px 10px;
+  font-size: 10px; color: var(--gold); letter-spacing: .1em; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(7,9,15,.9); backdrop-filter: blur(8px);
+  display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+}
+.loading-overlay.show { display: flex; }
+.spinner {
+  width: 48px; height: 48px;
+  border: 3px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 12px; color: var(--dim); letter-spacing: .1em; }
+.progress-bar {
+  width: 240px; height: 3px;
+  background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--gold); border-radius: 2px;
+  transition: width .3s ease; width: 0%;
+}
+#tooltip {
+  position: fixed; z-index: 300;
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: var(--r-sm); padding: 8px 12px;
+  font-size: 11px; pointer-events: none;
+  opacity: 0; transition: opacity .1s;
+  max-width: 200px;
+}
+#tooltip.show { opacity: 1; }
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(7,9,15,.8); backdrop-filter: blur(6px);
+  z-index: 150; display: none; align-items: center; justify-content: center; padding: 24px;
+}
+.modal-bg.show { display: flex; }
+.modal {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 14px; padding: 32px; width: min(500px, 100%);
+  max-height: 90vh; overflow-y: auto;
+}
+.modal h3 { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px; margin-bottom: 16px; }
+.modal p { color: var(--dim); font-size: 12px; line-height: 1.7; margin-bottom: 14px; }
+.modal code {
+  background: var(--s0); border: 1px solid var(--border); border-radius: 4px;
+  padding: 2px 6px; font-family: 'DM Mono', monospace; font-size: 11px;
+  color: var(--gold);
+}
+.config-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.config-row label { font-size: 11px; color: var(--dim); letter-spacing: .05em; }
+.config-row input {
+  background: var(--s0); border: 1px solid var(--border);
+  border-radius: 4px; padding: 9px 12px; color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  outline: none; transition: border-color .15s;
+}
+.config-row input:focus { border-color: var(--gold); }
+.status-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 20px; font-size: 10px; letter-spacing: .08em;
+}
+.chip-ok  { background: rgba(132,204,22,.1); color: var(--lime); border: 1px solid rgba(132,204,22,.2); }
+.chip-err { background: rgba(251,113,133,.1); color: var(--rose); border: 1px solid rgba(251,113,133,.2); }
+.chip-wait{ background: rgba(232,168,56,.1); color: var(--gold); border: 1px solid rgba(232,168,56,.2); }
+@media (max-width: 1100px) {
+  .g4 { grid-template-columns: repeat(2,1fr); }
+  .g3 { grid-template-columns: 1fr 1fr; }
+  .g21, .g12, .g13 { grid-template-columns: 1fr; }
+  .span2, .span3 { grid-column: span 1; }
+}
+@media (max-width: 640px) {
+  .g4, .g3, .g2 { grid-template-columns: 1fr; }
+  .time-tabs { display: none; }
+  #topbar { gap: 10px; }
+}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.notice {
+  background: rgba(251,113,133,.08); border: 1px solid rgba(251,113,133,.2);
+  border-radius: var(--r-sm); padding: 12px 16px; font-size: 11px;
+  color: var(--rose); line-height: 1.6;
+}
+.notice strong { color: var(--rose); }
+.gap-section { height: 28px; }
+</style>
+</head>
+<body>
+<div id="app">
 
+<!-- ═══════════════ LOADING OVERLAY ═════════════════════════ -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="loading-text" id="loadingText">Initialising…</div>
+</div>
+
+<!-- ═══════════════ TOOLTIP ══════════════════════════════════ -->
+<div id="tooltip"></div>
+
+<!-- ═══════════════ SETTINGS MODAL ═══════════════════════════ -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>API Configuration</h3>
+    <p>Keys are stored only in your browser's <code>sessionStorage</code> — never sent anywhere except the respective APIs.</p>
+    <div class="config-row">
+      <label>YOUTUBE DATA API KEY (v3)</label>
+      <input type="password" id="cfgYtKey" placeholder="AIzaSy…" autocomplete="off">
+    </div>
+    <div class="config-row">
+      <label>GOOGLE OAUTH CLIENT ID</label>
+      <input type="text" id="cfgOauthId" placeholder="174610338921-….apps.googleusercontent.com" autocomplete="off">
+    </div>
+    <div class="config-row">
+      <label>DEEPSEEK API KEY</label>
+      <input type="password" id="cfgDsKey" placeholder="sk-…" autocomplete="off">
+    </div>
+    <div class="notice" style="margin-bottom:16px">
+      <strong>Security:</strong> Running from <code>file://</code>? OAuth won't work — serve with
+      <code>python3 -m http.server 8080</code> and open <code>http://localhost:8080</code>.
+      Register <code>http://localhost:8080</code> as an Authorised JavaScript Origin in Google Cloud Console.
+    </div>
+    <div class="config-row">
+      <label>VPS SERVER URL</label>
+      <input type="text" id="cfgVpsUrl" placeholder="http://123.456.78.9" autocomplete="off">
+    </div>
+    <div class="config-row">
+      <label>VPS API TOKEN</label>
+      <input type="password" id="cfgVpsToken" placeholder="token from install.sh" autocomplete="off">
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button class="btn btn-ghost btn-sm" onclick="pingVPS()">⬤ Test VPS Connection</button>
+      <span id="vpsPingStatus" style="font-size:11px;color:var(--dim)">—</span>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="saveConfig()">Save &amp; Close</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeSettings()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ LANDING SCREEN ═══════════════════════════ -->
+<div id="landing" class="screen active">
+  <div class="landing-logo">MindMap</div>
+  <div class="landing-sub">YouTube Viewing Intelligence</div>
+  <div class="auth-panel">
+    <h2>Connect your history</h2>
+    <p>Analyse 6,900+ watch events to surface patterns, psychometric signals, and AI-generated insights. All processing happens in this browser.</p>
+    <!-- Option A: OAuth (desktop/localhost only) -->
+    <div id="oauthSection">
+      <button class="btn btn-primary" onclick="startOAuth()" id="oauthBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.28 5 12c0-4.2 3.29-7.27 7.19-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/></svg>
+        Sign in with Google (Live Data)
+      </button>
+      <div style="font-size:10px;color:var(--dim);margin-top:6px;text-align:center">
+        Requires <code style="background:var(--s2);padding:1px 5px;border-radius:3px">http://localhost:8080</code> — not mobile WebView
+      </div>
+    </div>
+    <!-- Mobile fallback notice -->
+    <div id="mobileNotice" style="display:none" class="notice" style="font-size:11px">
+      ⚠ <strong>OAuth unavailable</strong> in mobile/WebView. Use file upload below — it works fully offline.
+    </div>
+    <div class="divider">recommended · upload history export</div>
+    <!-- Option B: File upload -->
+    <div class="file-drop" id="fileDrop">
+      <input type="file" id="fileInput" accept=".json,.csv,.gz" onchange="handleFileUpload(event)">
+      <div class="drop-icon">📂</div>
+      <div>Drop <strong>watch-history.json</strong> or <strong style="color:var(--teal)">mindmap-enriched.json.gz</strong></div>
+      <div style="margin-top:6px;color:var(--dim);font-size:10px;line-height:1.7">
+        <strong style="color:var(--gold)">How to export:</strong><br>
+        myaccount.google.com → Data &amp; Privacy<br>
+        → Download your data → YouTube<br>
+        → Select <em>History</em> → JSON format
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="status-chip chip-wait" id="authStatus">⬤ Not connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙ Configure APIs</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DASHBOARD SCREEN ════════════════════════ -->
+<div id="dashScreen" class="screen">
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="topbar-brand">MindMap</div>
+    <div class="topbar-meta" id="topbarMeta">—</div>
+    <div class="time-tabs">
+      <button class="tab-btn active" onclick="setWindow('all')">All</button>
+      <button class="tab-btn" onclick="setWindow('60')">60d</button>
+      <button class="tab-btn" onclick="setWindow('30')">30d</button>
+      <button class="tab-btn" onclick="setWindow('7')">7d</button>
+      <button class="tab-btn" onclick="setWindow('1')">24h</button>
+    </div>
+    <div class="user-chip" id="userChip" style="display:none">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div class="user-name" id="userName">—</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙</button>
+    <button class="btn btn-ghost btn-sm" onclick="resetApp()">↩</button>
+  </div>
+
+  <!-- DASHBOARD CONTENT -->
+  <div id="dashboard">
+    <div class="container">
+      <!-- ── ENRICHMENT BANNER ── -->
+      <div id="enrichmentBanner" style="display:none;margin-bottom:14px;margin-top:16px">
+        <div style="background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(232,168,56,.05));
+                    border:1px solid rgba(45,212,191,.25);border-radius:var(--r);
+                    padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0;
+                      box-shadow:0 0 8px var(--teal)"></div>
+          <div style="flex:1">
+            <div style="font-size:12px;color:var(--text)">
+              Full transcript analysis active —
+              <strong id="enrichBannerCount" style="color:var(--teal)">0</strong> videos enriched
+            </div>
+            <div style="font-size:10px;color:var(--dim);margin-top:2px">
+              Category classification, psychometrics, and topic analysis use full transcript data
+            </div>
+          </div>
+          <span id="enrichBannerCoverage" style="font-size:11px;color:var(--dim)"></span>
+        </div>
+      </div>
+
+      <!-- ── KPI ROW ── -->
+      <div style="margin-top:24px" class="section-head">Overview</div>
+      <div class="grid g4" style="margin-bottom:14px">
+        <div class="card card-top-border-gold">
+          <div class="card-label"><span class="dot" style="background:var(--gold)"></span>Videos Watched</div>
+          <div class="kpi-val" id="kpiTotal">—</div>
+          <div class="kpi-sub" id="kpiTotalSub">—</div>
+        </div>
+        <div class="card card-top-border-teal accent-teal">
+          <div class="card-label"><span class="dot" style="background:var(--teal)"></span>Active Days</div>
+          <div class="kpi-val" id="kpiDays">—</div>
+          <div class="kpi-sub" id="kpiDaysSub">—</div>
+        </div>
+        <div class="card card-top-border-rose accent-rose">
+          <div class="card-label"><span class="dot" style="background:var(--rose)"></span>Peak Hour</div>
+          <div class="kpi-val" id="kpiPeak">—</div>
+          <div class="kpi-sub" id="kpiPeakSub">—</div>
+        </div>
+        <div class="card card-top-border-indigo accent-indigo">
+          <div class="card-label"><span class="dot" style="background:var(--indigo)"></span>Top Category</div>
+          <div class="kpi-val" id="kpiTopCat" style="font-size:26px">—</div>
+          <div class="kpi-sub" id="kpiTopCatSub">—</div>
+        </div>
+      </div>
+
+      <!-- ── HEATMAP ── -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-label"><span class="dot" style="background:var(--gold)"></span>Activity Heatmap — Daily View</div>
+        <div class="heatmap-outer">
+          <div class="heatmap-labels" id="hmMonthLabels"></div>
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:10px;color:var(--dim)">
+          <span>Less</span>
+          <div style="display:flex;gap:2px" id="hmLegend"></div>
+          <span>More</span>
+        </div>
+      </div>
+
+      <!-- ── TREND + CATEGORIES ── -->
+      <div class="grid g21" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-label"><span class="dot" style="background:var(--gold)"></span>Monthly Volume</div>
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="monthlyChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label"><span class="dot" style="background:var(--teal)"></span>Category Mix</div>
+          <div class="donut-wrap">
+            <canvas id="catChart"></canvas>
+            <div class="donut-center">
+              <div class="donut-num" id="donutNum">—</div>
+              <div class="donut-lbl">total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HOUR RADAR + WEEKDAY ── -->
+      <div class="grid g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-label"><span class="dot" style="background:var(--rose)"></span>Viewing by Hour of Day</div>
+          <div class="chart-wrap" style="height:220px">
+            <canvas id="hourChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label"><span class="dot" style="background:var(--indigo)"></span>Day-of-Week Distribution</div>
+          <div class="chart-wrap" style="height:220px">
+            <canvas id="weekdayChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CHANNELS + PSYCHOMETRICS ── -->
+      <div class="grid g21" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-label"><span class="dot" style="background:var(--sky)"></span>Top Channels</div>
+          <div id="channelList" class="channel-list-inner"></div>
+        </div>
+        <div class="card">
+          <div class="card-label"><span class="dot" style="background:var(--indigo)"></span>Psychometric Indicators</div>
+          <div id="psychoMetrics"></div>
+          <div style="margin-top:10px;font-size:10px;color:var(--muted);line-height:1.5">
+            Derived from category ratios, temporal patterns, and viewing density. Not clinical.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PSYCHOMETRIC TRENDS ── -->
+      <div class="card" id="psychoTrendCard" style="margin-bottom:14px">
+        <div class="card-label" style="margin-bottom:8px"><span class="dot" style="background:var(--indigo)"></span>Psychometric Trends</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:11px;color:var(--dim)">Start:</label>
+          <input type="date" id="trendStartDate" onchange="setDateRange()"
+                 style="background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px 10px;font-family:'DM Mono',monospace;font-size:11px;">
+          <label style="font-size:11px;color:var(--dim)">End:</label>
+          <input type="date" id="trendEndDate" onchange="setDateRange()"
+                 style="background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px 10px;font-family:'DM Mono',monospace;font-size:11px;">
+          <button class="btn btn-ghost btn-sm" onclick="resetDateRange()">Reset</button>
+        </div>
+
+        <div class="time-tabs" style="margin-bottom:12px;">
+          <button class="tab-btn active" onclick="setPsychoTrendWindow('weekly')">Weekly</button>
+          <button class="tab-btn" onclick="setPsychoTrendWindow('daily')">Daily</button>
+          <button class="tab-btn" onclick="setPsychoTrendWindow('monthly')">Monthly</button>
+        </div>
+        <div class="chart-wrap" style="height:220px">
+          <canvas id="psychoTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- ── AI INSIGHTS ── -->
+      <div class="section-head">AI-Generated Analysis</div>
+      <div style="margin-bottom:14px">
+        <div class="ai-badge">✦ Powered by DeepSeek</div>
+        <div class="insight-box" id="insightBox">
+          <span id="insightText" style="color:var(--dim)">Click <strong>Generate Analysis</strong> to run DeepSeek on your viewing data.</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="generateInsight('synopsis')">✦ Generate Synopsis</button>
+          <button class="btn btn-outline btn-sm" onclick="generateInsight('psychometric')">◈ Psychometric Deep-Dive</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateInsight('categories')">⊞ Re-classify Categories (AI)</button>
+        </div>
+      </div>
+
+      <!-- ── TRANSCRIPT ANALYSIS ── -->
+      <div class="section-head" style="margin-top:28px">Transcript Intelligence <span style="color:var(--dim);font-size:9px;margin-left:8px">VPS-POWERED</span></div>
+      <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="card-label" style="margin-bottom:0"><span class="dot" style="background:var(--teal)"></span>Select Videos for Transcript Analysis</div>
+          <span id="vpsStatusChip" class="status-chip chip-wait" style="margin-left:auto">⬤ VPS not checked</span>
+          <button class="btn btn-ghost btn-sm" onclick="checkVPS()">Ping VPS</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <select id="txFilter" onchange="renderVideoSelector()"
+            style="background:var(--s2);border:1px solid var(--border);color:var(--text);
+                   border-radius:4px;padding:6px 10px;font-family:'DM Mono',monospace;font-size:11px">
+            <option value="top_channels">Top Channels</option>
+            <option value="recent_30">Last 30 Days</option>
+            <option value="recent_7">Last 7 Days</option>
+            <option value="all_other">Uncategorised (Other)</option>
+          </select>
+          <input type="number" id="txLimit" value="20" min="1" max="200"
+            style="width:70px;background:var(--s2);border:1px solid var(--border);
+                   color:var(--text);border-radius:4px;padding:6px 10px;
+                   font-family:'DM Mono',monospace;font-size:11px"
+            placeholder="limit">
+          <button class="btn btn-ghost btn-sm" onclick="renderVideoSelector()">Filter</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectAllVideos()">Select All</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Clear</button>
+        </div>
+        <div id="videoSelectorList"
+          style="max-height:280px;overflow-y:auto;border:1px solid var(--border);
+                 border-radius:6px;background:var(--s0)">
+          <div style="padding:20px;text-align:center;color:var(--dim);font-size:12px">
+            Load your history file first, then select videos here.
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center">
+          <select id="txAnalysisType"
+            style="background:var(--s2);border:1px solid var(--border);color:var(--text);
+                   border-radius:4px;padding:6px 10px;font-family:'DM Mono',monospace;font-size:11px">
+            <option value="synopsis">Synopsis + Topics</option>
+            <option value="psychometric">Psychometric Analysis</option>
+            <option value="classify">Re-classify Category</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="submitTranscriptBatch()" id="txSubmitBtn">
+            ⬆ Send to VPS
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="generateAggregateReport()">
+            ✦ Aggregate Report
+          </button>
+          <span id="txSelCount" style="font-size:11px;color:var(--dim)">0 selected</span>
+        </div>
+      </div>
+
+      <div class="card" id="txProgressCard" style="display:none;margin-bottom:14px">
+        <div class="card-label"><span class="dot" style="background:var(--teal)"></span>Job Progress</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="flex:1;height:6px;background:var(--s0);border-radius:3px;overflow:hidden">
+            <div id="txProgressBar" style="height:100%;background:var(--teal);border-radius:3px;width:0%;transition:width .3s"></div>
+          </div>
+          <span id="txProgressText" style="font-size:11px;color:var(--dim);white-space:nowrap">0 / 0</span>
+        </div>
+        <div id="txResultsList" style="max-height:320px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   CONFIG & STATE
+══════════════════════════════════════════════════════════════ */
+const CFG = {
+  get ytKey()    { return sessionStorage.getItem('yt_key')    || ''; },
+  get oauthId()  { return sessionStorage.getItem('oauth_id')  || ''; },
+  get dsKey()    { return sessionStorage.getItem('ds_key')    || ''; },
+  get vpsUrl()   { return sessionStorage.getItem('vps_url')   || ''; },
+  get vpsToken() { return sessionStorage.getItem('vps_token') || ''; },
+  set ytKey(v)   { sessionStorage.setItem('yt_key', v); },
+  set oauthId(v) { sessionStorage.setItem('oauth_id', v); },
+  set dsKey(v)   { sessionStorage.setItem('ds_key', v); },
+  set vpsUrl(v)  { sessionStorage.setItem('vps_url', v); },
+  set vpsToken(v){ sessionStorage.setItem('vps_token', v); },
+};
+
+const DEFAULT_YT_KEY   = 'YOUR_YOUTUBE_API_KEY_HERE';
+const DEFAULT_OAUTH_ID = 'YOUR_OAUTH_CLIENT_ID_HERE';
+const DEFAULT_DS_KEY   = 'YOUR_DEEPSEEK_API_KEY_HERE';
+const DEFAULT_VPS_URL  = 'http://YOUR_VPS_IP';
+const DEFAULT_VPS_TOKEN= 'YOUR_API_TOKEN_HERE';
+
+let STATE = {
+  records: [],
+  window: 'all',
+  windowData: null,
+  allDaily: {},
+  weeklyMetrics: [],
+  dailyPsychometrics: [],
+  monthlyPsychometrics: [],
+  windows: {},
+  monthCounts: {},
+  total: 0,
+  userInfo: null,
+  oauthToken: null,
+  charts: {},
+  vpsOnline: null,
+  transcriptJobs: {},
+  transcriptResults: {},
+  enrichedCount: 0,
+  sidecar: {},
+  psychoTrendWindow: 'weekly',
+  startDate: null,
+  endDate: null,
+};
+
+/* ══════════════════════════════════════════════════════════════
+   UI HELPERS
+══════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const show = id => { $(id).classList.add('active'); };
+const hide = id => { $(id).classList.remove('active'); };
+
+function loading(show, text='Processing…', pct=0) {
+  const el = $('loadingOverlay');
+  el.classList.toggle('show', show);
+  $('loadingText').textContent = text;
+  $('progressFill').style.width = pct + '%';
+}
+
+function setProgress(pct, text) {
+  $('progressFill').style.width = pct + '%';
+  if (text) $('loadingText').textContent = text;
+}
+
+const tooltip = $('tooltip');
+function showTip(e, html) {
+  tooltip.innerHTML = html;
+  tooltip.classList.add('show');
+  moveTip(e);
+}
+function moveTip(e) {
+  tooltip.style.left = (e.clientX + 14) + 'px';
+  tooltip.style.top  = (e.clientY - 10) + 'px';
+}
+function hideTip() { tooltip.classList.remove('show'); }
+document.addEventListener('mousemove', moveTip);
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════════════════════════ */
+function openSettings() {
+  $('cfgYtKey').value    = CFG.ytKey    || DEFAULT_YT_KEY;
+  $('cfgOauthId').value  = CFG.oauthId  || DEFAULT_OAUTH_ID;
+  $('cfgDsKey').value    = CFG.dsKey    || DEFAULT_DS_KEY;
+  $('cfgVpsUrl').value   = CFG.vpsUrl   || DEFAULT_VPS_URL;
+  $('cfgVpsToken').value = CFG.vpsToken || DEFAULT_VPS_TOKEN;
+  $('settingsModal').classList.add('show');
+}
+function closeSettings() { $('settingsModal').classList.remove('show'); }
+function saveConfig() {
+  CFG.ytKey    = $('cfgYtKey').value.trim();
+  CFG.oauthId  = $('cfgOauthId').value.trim();
+  CFG.dsKey    = $('cfgDsKey').value.trim();
+  CFG.vpsUrl   = $('cfgVpsUrl').value.trim().replace(/\/$/, '');
+  CFG.vpsToken = $('cfgVpsToken').value.trim();
+  closeSettings();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GOOGLE OAUTH
+══════════════════════════════════════════════════════════════ */
+function startOAuth() {
+  const clientId = CFG.oauthId || DEFAULT_OAUTH_ID;
+  if (clientId.includes('YOUR_')) {
+    openSettings();
+    alert('Please set your Google OAuth Client ID first.');
+    return;
+  }
+  if (window.location.protocol === 'file:' ||
+      (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
+    if (!confirm('OAuth requires http://localhost:8080.\n\nYou appear to be opening the file directly.\n\nProceed anyway? It will likely fail.\n\nCancel to use file upload instead.')) return;
+  }
+  const redirect = window.location.origin + window.location.pathname;
+  const scope = 'https://www.googleapis.com/auth/youtube.readonly';
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('oauth_state', state);
+  const url = `https://accounts.google.com/o/oauth2/v2/auth`
+    + `?client_id=${encodeURIComponent(clientId)}`
+    + `&redirect_uri=${encodeURIComponent(redirect)}`
+    + `&response_type=token`
+    + `&scope=${encodeURIComponent(scope)}`
+    + `&state=${state}`
+    + `&include_granted_scopes=true`;
+  window.location.href = url;
+}
+
+async function handleOAuthCallback() {
+  const hash = window.location.hash;
+  if (!hash.includes('access_token')) return false;
+  const params = new URLSearchParams(hash.slice(1));
+  const token = params.get('access_token');
+  const returnedState = params.get('state');
+  if (!token) return false;
+  history.replaceState(null, '', window.location.pathname);
+  STATE.oauthToken = token;
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    STATE.userInfo = await r.json();
+  } catch(e) {}
+  await fetchYouTubeHistory(token);
+  return true;
+}
+
+async function fetchYouTubeHistory(token) {
+  loading(true, 'Fetching YouTube activity…', 5);
+  const apiKey = CFG.ytKey || DEFAULT_YT_KEY;
+  const records = [];
+  let pageToken = '';
+  let page = 0;
+  const maxPages = 20;
+  try {
+    do {
+      page++;
+      setProgress(5 + (page/maxPages)*50, `Fetching activity page ${page}…`);
+      const url = `https://www.googleapis.com/youtube/v3/activities`
+        + `?part=snippet,contentDetails`
+        + `&mine=true`
+        + `&maxResults=50`
+        + `&type=watch`
+        + (pageToken ? `&pageToken=${pageToken}` : '')
+        + `&key=${apiKey}`;
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+      const data = await r.json();
+      if (data.error) { console.error(data.error); break; }
+      for (const item of (data.items || [])) {
+        const s = item.snippet;
+        const dt = new Date(s.publishedAt || '');
+        records.push({
+          title: s.title || '',
+          ch: s.channelTitle || 'Unknown',
+          date: dt.toISOString().slice(0,10),
+          h: dt.getHours(),
+          wd: dt.getDay(),
+          cat: 'Other',
+          url: `https://www.youtube.com/watch?v=${item.contentDetails?.upload?.videoId || ''}`
+        });
+      }
+      pageToken = data.nextPageToken || '';
+    } while (pageToken && page < maxPages);
+    setProgress(60, 'Classifying with DeepSeek…');
+    await classifyWithAI(records);
+    buildStateFromRecords(records);
+    renderDashboard();
+  } catch(err) {
+    loading(false);
+    alert('YouTube API error: ' + err.message);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FILE UPLOAD
+══════════════════════════════════════════════════════════════ */
+async function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loading(true, 'Reading file…', 5);
+  try {
+    if (file.name.endsWith('.gz')) {
+      await ingestBundle(file);
+    } else if (file.name.endsWith('.csv')) {
+      const buf = await file.arrayBuffer();
+      const text = new TextDecoder().decode(buf);
+      const raw = parseCSV(text);
+      await ingestHistory(raw);
+    } else {
+      const buf = await file.arrayBuffer();
+      const text = new TextDecoder().decode(buf);
+      const raw = JSON.parse(text);
+      await ingestHistory(raw);
+    }
+  } catch(err) {
+    loading(false);
+    alert('File error: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function ingestBundle(file) {
+  setProgress(15, 'Decompressing bundle…');
+  const arrayBuf = await file.arrayBuffer();
+  let text;
+  try {
+    const ds = new DecompressionStream('gzip');
+    const decompressed = new Response(
+      new Blob([arrayBuf]).stream().pipeThrough(ds)
+    );
+    text = await decompressed.text();
+  } catch (e) {
+    if (typeof pako === 'undefined') {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    const inflated = pako.inflate(new Uint8Array(arrayBuf));
+    text = new TextDecoder().decode(inflated);
+  }
+  setProgress(55, 'Parsing bundle…');
+  const bundle = JSON.parse(text);
+  if (!bundle.version || !bundle.history || !bundle.sidecar) {
+    throw new Error('Not a valid MindMap bundle. Expected {version, history, sidecar}');
+  }
+  STATE.sidecar = bundle.sidecar;
+  const enrichedCount = Object.keys(bundle.sidecar).length;
+  setProgress(65, 'Processing history…');
+  const records = parseRawHistory(bundle.history, bundle.sidecar);
+  setProgress(80, 'Classifying uncovered records…');
+  const needClassify = records.filter(r => r.cat === 'Other' && !bundle.sidecar[r.video_id]);
+  if (needClassify.length > 0) await classifyWithAI(needClassify);
+  setProgress(92, 'Building analytics…');
+  buildStateFromRecords(records);
+  setProgress(99, 'Rendering…');
+  STATE.enrichedCount = enrichedCount;
+  renderDashboard();
+}
+
+async function ingestHistory(raw) {
+  setProgress(20, 'Parsing records…');
+  const records = parseRawHistory(raw, {});
+  setProgress(45, 'Classifying categories…');
+  await classifyWithAI(records);
+  setProgress(78, 'Building analytics…');
+  buildStateFromRecords(records);
+  setProgress(96, 'Rendering…');
+  renderDashboard();
+}
+
+function parseRawHistory(raw, sidecar = {}) {
+  if (!Array.isArray(raw)) raw = [raw];
+  const seen = new Set();
+  const records = [];
+  for (const r of raw) {
+    if (!r.time) continue;
+    const url   = r.titleUrl || r.url || '';
+    const vidId = extractVideoId(url);
+    if (!vidId || seen.has(vidId)) continue;
+    seen.add(vidId);
+    const dt      = new Date(r.time);
+    const title   = (r.title || r.titleUrl || '').replace(/^Watched\s+/i, '');
+    const ch      = r.subtitles?.[0]?.name || r.channel || 'Unknown';
+    const enriched = sidecar[vidId] || null;
+    const analysis = enriched?.analysis || null;
+    let cat = 'Other';
+    if (analysis?.category && !analysis.error) {
+      cat = analysis.category;
+    } else {
+      cat = localClassify(title);
+    }
+    records.push({
+      video_id:  vidId,
+      title, ch, url,
+      date:      dt.toISOString().slice(0, 10),
+      h:         dt.getHours(),
+      wd:        dt.getDay(),
+      cat,
+      transcript: enriched?.transcript || null,
+      analysis:   analysis,
+    });
+  }
+  return records;
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n').filter(Boolean);
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = vals[i] || '');
+    return { time: obj.time || obj.Time || obj.date, title: obj.title || obj.Title, titleUrl: obj.url || obj.URL };
+  }).filter(r => r.time);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOCAL CLASSIFIER
+══════════════════════════════════════════════════════════════ */
+function localClassify(title) {
+  const t = title.toLowerCase();
+  if (/physics|quantum|math|astronom|black hole|relativity|biology|chemistry|neuroscience|universe|cosmolog|particle|scientific/.test(t)) return 'Science';
+  if (/history|war|ancient|medieval|empire|battle|civiliz|ww2|napoleon|roman|egypt|viking|mongol|crusade/.test(t)) return 'History';
+  if (/politic|democrat|republican|election|government|news|trump|congress|president|policy|senate|biden|kamala|maga/.test(t)) return 'Politics';
+  if (/philosoph|consciousness|meaning|ethics|moral|existential|epistemology|ontology|wisdom/.test(t)) return 'Philosophy';
+  if (/food|eating|recipe|restaurant|burger|pizza|meal|mukbang|chubbyemu|beard meat|sushi|ramen/.test(t)) return 'Food';
+  if (/\bai\b|artificial intel|machine learn|llm|gpt|claude|software|program|coding|computer|windows|apple|gpu|tech|robot|deepseek/.test(t)) return 'Technology';
+  if (/finance|money|invest|stock|economy|market|wealth|millionaire|crypto|bitcoin|trading/.test(t)) return 'Finance';
+  if (/health|medical|vitamin|symptom|doctor|mental health|fitness|exercise|workout|medicine|disease/.test(t)) return 'Health';
+  if (/animal|wildlife|ocean|conservation|hoof|shark|whale|turtle|penguin|nature|wildlife/.test(t)) return 'Nature';
+  if (/music|song|album|concert|tour|taylor|performance|piano|guitar|drum/.test(t)) return 'Music';
+  if (/psycholog|personality|behav|cognitive|brain|trauma|narciss|iq|intelligence|mindset/.test(t)) return 'Psychology';
+  return 'Other';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEEPSEEK CLASSIFIER (batch)
+══════════════════════════════════════════════════════════════ */
+async function classifyWithAI(records) {
+  const dsKey = CFG.dsKey || DEFAULT_DS_KEY;
+  if (dsKey.includes('YOUR_') || !dsKey) return;
+  const toClassify = records.filter(r => r.cat === 'Other').slice(0, 400);
+  if (toClassify.length === 0) return;
+  const batchSize = 80;
+  const batches = [];
+  for (let i = 0; i < toClassify.length; i += batchSize) {
+    batches.push(toClassify.slice(i, i + batchSize));
+  }
+  const cats = ['Science','History','Politics','Philosophy','Food','Technology',
+                'Finance','Health','Nature','Music','Psychology','Other'];
+  for (let b = 0; b < batches.length; b++) {
+    setProgress(45 + (b/batches.length)*25, `AI classifying batch ${b+1}/${batches.length}…`);
+    const batch = batches[b];
+    const prompt = `Classify each YouTube video title into exactly one category.
+Categories: ${cats.join(', ')}
+Return ONLY a JSON array of category strings, one per title, in the same order.
+No explanation. No markdown.
+
+Titles:
+${batch.map((r,i) => `${i+1}. ${r.title}`).join('\n')}`;
+    try {
+      const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + dsKey
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          max_tokens: 800,
+          temperature: 0,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content || '[]';
+      const cleaned = text.replace(/```json|```/g,'').trim();
+      const classified = JSON.parse(cleaned);
+      batch.forEach((r, i) => {
+        if (classified[i] && cats.includes(classified[i])) {
+          r.cat = classified[i];
+        }
+      });
+    } catch(e) {
+      console.warn('DeepSeek classify error, using local fallback', e);
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STATE BUILDER
+══════════════════════════════════════════════════════════════ */
+function buildStateFromRecords(records) {
+  STATE.records = records;
+  STATE.total = records.length;
+
+  const daily = {};
+  for (const r of records) {
+    if (!daily[r.date]) daily[r.date] = { n: 0, cats: {}, c: 'Other' };
+    daily[r.date].n++;
+    daily[r.date].cats[r.cat] = (daily[r.date].cats[r.cat] || 0) + 1;
+  }
+  for (const d of Object.values(daily)) {
+    d.c = Object.entries(d.cats).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Other';
+  }
+  STATE.allDaily = daily;
+
+  const mc = {};
+  for (const r of records) {
+    const m = r.date.slice(0,7);
+    mc[m] = (mc[m]||0)+1;
+  }
+  STATE.monthCounts = mc;
+
+  const weeks = {};
+  const days = {};
+  const months = {};
+
+  for (const r of records) {
+    const d = new Date(r.date);
+    const wk = getISOWeek(d);
+    if (!weeks[wk]) weeks[wk] = { count:0, cats:{}, late:0 };
+    weeks[wk].count++;
+    weeks[wk].cats[r.cat] = (weeks[wk].cats[r.cat]||0)+1;
+    if (r.h >= 23 || r.h <= 4) weeks[wk].late++;
+
+    const dayStr = r.date;
+    if (!days[dayStr]) days[dayStr] = { count:0, cats:{}, late:0 };
+    days[dayStr].count++;
+    days[dayStr].cats[r.cat] = (days[dayStr].cats[r.cat]||0)+1;
+    if (r.h >= 23 || r.h <= 4) days[dayStr].late++;
+
+    const monthStr = r.date.slice(0, 7);
+    if (!months[monthStr]) months[monthStr] = { count:0, cats:{}, late:0 };
+    months[monthStr].count++;
+    months[monthStr].cats[r.cat] = (months[monthStr].cats[r.cat]||0)+1;
+    if (r.h >= 23 || r.h <= 4) months[monthStr].late++;
+  }
+
+  STATE.weeklyMetrics = Object.entries(weeks).sort((a,b)=>a[0]<b[0]?-1:1).map(([wk,v]) => {
+    const t = v.count;
+    const c = v.cats;
+    return {
+      week: wk, count: t,
+      curiosity:  +((( c.Science||0)+(c.Philosophy||0)+(c.Psychology||0))/t).toFixed(3),
+      political:  +((c.Politics||0)/t).toFixed(3),
+      escapism:   +(((c.Food||0)+(c.Nature||0)+(c.Music||0))/t).toFixed(3),
+      late_night: +((v.late)/t).toFixed(3),
+    };
+  });
+
+  STATE.dailyPsychometrics = Object.entries(days).sort((a,b)=>a[0]<b[0]?-1:1).map(([dayStr,v]) => {
+    const t = v.count;
+    const c = v.cats;
+    return {
+      date: dayStr, count: t,
+      curiosity:  +((( c.Science||0)+(c.Philosophy||0)+(c.Psychology||0))/t).toFixed(3),
+      political:  +((c.Politics||0)/t).toFixed(3),
+      escapism:   +(((c.Food||0)+(c.Nature||0)+(c.Music||0))/t).toFixed(3),
+      late_night: +((v.late)/t).toFixed(3),
+    };
+  });
+
+  STATE.monthlyPsychometrics = Object.entries(months).sort((a,b)=>a[0]<b[0]?-1:1).map(([monthStr,v]) => {
+    const t = v.count;
+    const c = v.cats;
+    return {
+      month: monthStr, count: t,
+      curiosity:  +((( c.Science||0)+(c.Philosophy||0)+(c.Psychology||0))/t).toFixed(3),
+      political:  +((c.Politics||0)/t).toFixed(3),
+      escapism:   +(((c.Food||0)+(c.Nature||0)+(c.Music||0))/t).toFixed(3),
+      late_night: +((v.late)/t).toFixed(3),
+    };
+  });
+
+  const dates = Object.keys(daily).sort();
+  const latest = dates[dates.length-1];
+  const earliest = dates[0];
+  const latestDt = new Date(latest);
+  STATE.startDate = earliest;
+  STATE.endDate = latest;
+  STATE.windows = {};
+  const windowDefs = { '1':1, '7':7, '30':30, '60':60, 'all':99999 };
+  for (const [key, days] of Object.entries(windowDefs)) {
+    const cutoff = new Date(latestDt); cutoff.setDate(cutoff.getDate() - days);
+    const cutStr = cutoff.toISOString().slice(0,10);
+    const sub = records.filter(r => key==='all' || r.date >= cutStr);
+    const cats={}, chs={}, hrs={}, wds={}, dc={};
+    for (const r of sub) {
+      cats[r.cat] = (cats[r.cat]||0)+1;
+      chs[r.ch]   = (chs[r.ch]||0)+1;
+      hrs[r.h]    = (hrs[r.h]||0)+1;
+      wds[r.wd]   = (wds[r.wd]||0)+1;
+      dc[r.date]  = (dc[r.date]||0)+1;
+    }
+    STATE.windows[key] = {
+      total: sub.length,
+      cats, hrs, wds, daily_counts: dc,
+      top_channels: Object.fromEntries(
+        Object.entries(chs).sort((a,b)=>b[1]-a[1]).slice(0,15)
+      )
+    };
+  }
+  STATE.window = 'all';
+  STATE.windowData = STATE.windows['all'];
+}
+
+function getISOWeek(d) {
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = dt.getUTCDay() || 7;
+  dt.setUTCDate(dt.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
+  return `${dt.getUTCFullYear()}-W${String(wk).padStart(2,'0')}`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TIME WINDOW SWITCH
+══════════════════════════════════════════════════════════════ */
+function setWindow(key) {
+  STATE.window = key;
+  STATE.windowData = STATE.windows[key] || STATE.windows['all'];
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.replace('d','') === key || (key==='all' && b.textContent==='All'));
+  });
+  updateKPIs();
+  updateChannels();
+  updateCategoryChart();
+  updateHourChart();
+  updateWeekdayChart();
+  updatePsychometrics();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER DASHBOARD
+══════════════════════════════════════════════════════════════ */
+function renderDashboard() {
+  loading(false);
+  hide('landing');
+  show('dashScreen');
+
+  if (STATE.userInfo) {
+    $('userChip').style.display = 'flex';
+    $('userName').textContent = STATE.userInfo.given_name || STATE.userInfo.name || '—';
+    const av = $('userAvatar');
+    if (STATE.userInfo.picture) {
+      av.innerHTML = `<img src="${STATE.userInfo.picture}" alt="">`;
+    } else {
+      av.textContent = (STATE.userInfo.name || '?')[0].toUpperCase();
+    }
+  }
+
+  const dates = Object.keys(STATE.allDaily).sort();
+  const latest = dates[dates.length-1];
+  const earliest = dates[0];
+  const enrichedLabel = STATE.enrichedCount
+    ? `  ·  ${STATE.enrichedCount.toLocaleString()} enriched`
+    : '';
+  $('topbarMeta').textContent = `${earliest} → ${latest}  ·  ${STATE.total.toLocaleString()} videos${enrichedLabel}`;
+
+  if (STATE.enrichedCount) {
+    const pct = STATE.total ? Math.round(STATE.enrichedCount / STATE.total * 100) : 0;
+    $('enrichBannerCount').textContent = STATE.enrichedCount.toLocaleString();
+    $('enrichBannerCoverage').textContent = `${pct}% coverage`;
+    $('enrichmentBanner').style.display = 'block';
+  } else {
+    $('enrichmentBanner').style.display = 'none';
+  }
+
+  $('trendStartDate').value = STATE.startDate || earliest;
+  $('trendEndDate').value   = STATE.endDate   || latest;
+
+  try {
+    buildHeatmap();
+    buildMonthlyChart();
+    buildPsychoTrendChart();
+    setWindow('all');
+  } catch(err) {
+    console.error('Dashboard render error:', err);
+    const errBanner = document.createElement('div');
+    errBanner.style.cssText = 'background:#2d0a0a;border:1px solid var(--rose);border-radius:var(--r);padding:14px 20px;margin:20px 24px;color:var(--rose);font-size:12px';
+    errBanner.textContent = '⚠ Render error: ' + err.message;
+    $('dashboard').prepend(errBanner);
+  }
+  setTimeout(renderVideoSelector, 100);
+  setTimeout(checkVPS, 500);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   KPIs
+══════════════════════════════════════════════════════════════ */
+function updateKPIs() {
+  const wd = STATE.windowData;
+  if (!wd) return;
+  $('kpiTotal').textContent = wd.total.toLocaleString();
+  $('kpiTotalSub').textContent = `${(wd.total / Math.max(1, Object.keys(wd.daily_counts).length)).toFixed(1)} avg / day`;
+  $('kpiDays').textContent = Object.keys(wd.daily_counts).length;
+  $('kpiDaysSub').textContent = `Active days in window`;
+  const hrs = wd.hrs;
+  const peakH = Object.entries(hrs).sort((a,b)=>b[1]-a[1])[0];
+  if (peakH) {
+    const h = parseInt(peakH[0]);
+    $('kpiPeak').textContent = h === 0 ? '12AM' : h < 12 ? h+'AM' : h===12?'12PM':(h-12)+'PM';
+    $('kpiPeakSub').textContent = `${peakH[1]} videos at this hour`;
+  }
+  const cats = wd.cats;
+  const topCat = Object.entries(cats).filter(([k])=>k!=='Other').sort((a,b)=>b[1]-a[1])[0];
+  if (topCat) {
+    $('kpiTopCat').textContent = topCat[0];
+    $('kpiTopCatSub').textContent = `${topCat[1]} videos (${Math.round(100*topCat[1]/wd.total)}%)`;
+  }
+  $('donutNum').textContent = wd.total.toLocaleString();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HEATMAP
+══════════════════════════════════════════════════════════════ */
+const CAT_COLORS = {
+  Science:'#818cf8', History:'#f59e0b', Politics:'#fb7185',
+  Philosophy:'#a78bfa', Food:'#f97316', Technology:'#38bdf8',
+  Finance:'#10b981', Health:'#ec4899', Nature:'#84cc16',
+  Music:'#e879f9', Psychology:'#14b8a6', Other:'#334155'
+};
+
+function heatColor(n, max) {
+  if (!n) return '#111823';
+  const t = Math.min(n / max, 1);
+  if (t < 0.25) return '#1a2e0a';
+  if (t < 0.5)  return '#2d5a0e';
+  if (t < 0.75) return '#4ade80';
+  return '#86efac';
+}
+
+function buildHeatmap() {
+  const grid = $('heatmapGrid');
+  grid.innerHTML = '';
+  const daily = STATE.allDaily;
+  const dates = Object.keys(daily).sort();
+  if (!dates.length) return;
+  const max = Math.max(...Object.values(daily).map(d=>d.n));
+  const first = new Date(dates[0]);
+  const last  = new Date(dates[dates.length-1]);
+  const start = new Date(first);
+  start.setDate(start.getDate() - start.getDay());
+  const cells = [];
+  const cur = new Date(start);
+  while (cur <= last) {
+    cells.push(new Date(cur));
+    cur.setDate(cur.getDate()+1);
+  }
+  const labelEl = $('hmMonthLabels');
+  labelEl.innerHTML = '';
+  const weeks = Math.ceil(cells.length/7);
+  const monthMap = {};
+  cells.forEach((d,i) => {
+    const wk = Math.floor(i/7);
+    const mk = d.getFullYear()+'-'+d.getMonth();
+    if (!monthMap[mk]) monthMap[mk] = wk;
+  });
+  let lastWk = -1;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for (const [mk, wk] of Object.entries(monthMap)) {
+    const [, mo] = mk.split('-');
+    const spacer = document.createElement('div');
+    spacer.style.cssText = `width:${(wk-lastWk)/weeks*100}%;display:inline-block;flex-shrink:0`;
+    const span = document.createElement('span');
+    span.textContent = MONTHS[parseInt(mo)];
+    labelEl.appendChild(spacer);
+    labelEl.appendChild(span);
+    lastWk = wk;
+  }
+  grid.style.gridTemplateColumns = `repeat(${weeks},1fr)`;
+  cells.forEach(d => {
+    const ds = d.toISOString().slice(0,10);
+    const info = daily[ds];
+    const cell = document.createElement('div');
+    cell.className = 'hm-cell';
+    cell.style.background = info ? heatColor(info.n, max) : '#0d1117';
+    cell.addEventListener('mouseenter', e => {
+      showTip(e, info
+        ? `<strong>${ds}</strong><br>${info.n} videos<br>Top: ${info.c}`
+        : `<strong>${ds}</strong><br>No data`);
+    });
+    cell.addEventListener('mouseleave', hideTip);
+    grid.appendChild(cell);
+  });
+  const leg = $('hmLegend');
+  leg.innerHTML = '';
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const d = document.createElement('div');
+    d.style.cssText = `width:11px;height:11px;border-radius:2px;background:${heatColor(t*max,max)}`;
+    leg.appendChild(d);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MONTHLY CHART
+══════════════════════════════════════════════════════════════ */
+function buildMonthlyChart() {
+  const mc = STATE.monthCounts;
+  const labels = Object.keys(mc).sort().map(m => {
+    const [y,mo] = m.split('-');
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1] + ' ' + y.slice(2);
+  });
+  const vals = Object.keys(mc).sort().map(k => mc[k]);
+  destroyChart('monthlyChart');
+  STATE.charts.monthly = new Chart($('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Videos',
+        data: vals,
+        backgroundColor: vals.map((_,i) => `hsla(${35 + i*8}, 80%, 55%, 0.7)`),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: chartOpts({ yLabel: 'Videos' })
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CATEGORY DONUT
+══════════════════════════════════════════════════════════════ */
+function updateCategoryChart() {
+  const cats = STATE.windowData.cats;
+  const sorted = Object.entries(cats).filter(([k])=>k!=='Other').sort((a,b)=>b[1]-a[1]);
+  const other = cats['Other'] || 0;
+  if (other > 0) sorted.push(['Other', other]);
+  destroyChart('catChart');
+  STATE.charts.cat = new Chart($('catChart'), {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(([k])=>k),
+      datasets: [{
+        data: sorted.map(([,v])=>v),
+        backgroundColor: sorted.map(([k]) => CAT_COLORS[k] || '#334155'),
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.raw} (${Math.round(100*ctx.raw/STATE.windowData.total)}%)`
+          },
+          backgroundColor: '#17202e', borderColor: '#1e2d42', borderWidth: 1,
+          titleColor: '#e8a838', bodyColor: '#dde4f0', padding: 10,
+        }
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HOUR CHART
+══════════════════════════════════════════════════════════════ */
+function updateHourChart() {
+  const hrs = STATE.windowData.hrs;
+  const labels = Array.from({length:24},(_,i)=> i===0?'12AM':i<12?i+'AM':i===12?'12PM':(i-12)+'PM');
+  const vals   = Array.from({length:24},(_,i)=> hrs[i]||0);
+  destroyChart('hourChart');
+  STATE.charts.hour = new Chart($('hourChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Videos',
+        data: vals,
+        backgroundColor: vals.map(v => {
+          const max = Math.max(...vals);
+          const t = v/max;
+          return `rgba(251,113,133,${0.2 + t*0.7})`;
+        }),
+        borderRadius: 3,
+        borderSkipped: false,
+      }]
+    },
+    options: chartOpts({ yLabel: '' })
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WEEKDAY CHART
+══════════════════════════════════════════════════════════════ */
+function updateWeekdayChart() {
+  const wds = STATE.windowData.wds;
+  const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const vals = Array.from({length:7},(_,i)=>wds[i]||0);
+  destroyChart('weekdayChart');
+  STATE.charts.weekday = new Chart($('weekdayChart'), {
+    type: 'radar',
+    data: {
+      labels: dayLabels,
+      datasets: [{
+        label: 'Videos',
+        data: vals,
+        backgroundColor: 'rgba(129,140,248,0.15)',
+        borderColor: '#818cf8',
+        pointBackgroundColor: '#818cf8',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        r: {
+          ticks: { color: '#334155', backdropColor: 'transparent', font: { family: 'DM Mono', size: 9 } },
+          grid: { color: '#1e2d42' },
+          pointLabels: { color: '#5a7090', font: { family: 'DM Mono', size: 10 } },
+          angleLines: { color: '#1e2d42' },
+        }
+      },
+      plugins: { legend: { display: false }, tooltip: dsTooltip() }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CHANNELS
+══════════════════════════════════════════════════════════════ */
+function updateChannels() {
+  const channels = STATE.windowData.top_channels;
+  const entries = Object.entries(channels).filter(([k])=>k!=='Unknown').slice(0,12);
+  const max = entries[0]?.[1] || 1;
+  const el = $('channelList');
+  el.innerHTML = entries.map(([name, n], i) => `
+    <div class="ch-row">
+      <span class="ch-rank">${i+1}</span>
+      <span class="ch-name" title="${name}">${name}</span>
+      <div class="ch-bar-bg"><div class="ch-bar-fill" style="width:${Math.round(100*n/max)}%"></div></div>
+      <span class="ch-n">${n}</span>
+    </div>
+  `).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PSYCHOMETRICS
+══════════════════════════════════════════════════════════════ */
+function updatePsychometrics() {
+  const wm = STATE.weeklyMetrics;
+  if (!wm.length) return;
+  const wd = STATE.windowData;
+  const total = wd.total;
+  const cats = wd.cats;
+  const hrs = wd.hrs;
+  const curiosity  = ((cats.Science||0)+(cats.Philosophy||0)+(cats.Psychology||0)) / total;
+  const political  = (cats.Politics||0) / total;
+  const escapism   = ((cats.Food||0)+(cats.Nature||0)+(cats.Music||0)) / total;
+  const lateNight  = (Object.entries(hrs).filter(([h])=>parseInt(h)>=23||parseInt(h)<=4).reduce((s,[,v])=>s+v,0)) / total;
+  const metrics = [
+    { key:'curiosity',  label:'Curiosity Index',    val:curiosity, cls:'pm-curiosity',  desc:'Science + Philosophy + Psychology' },
+    { key:'political',  label:'Political Engagement',val:political, cls:'pm-political',  desc:'News & Politics content' },
+    { key:'escapism',   label:'Escapism Index',      val:escapism,  cls:'pm-escapism',   desc:'Food, Nature, Music' },
+    { key:'nocturnal',  label:'Nocturnal Viewer',    val:lateNight, cls:'pm-nocturnal',  desc:'11PM – 4AM viewing' },
+  ];
+  $('psychoMetrics').innerHTML = metrics.map(m => `
+    <div class="pm-row">
+      <div class="pm-head">
+        <span class="pm-name">${m.label}</span>
+        <span class="pm-pct">${Math.round(m.val*100)}%</span>
+      </div>
+      <div class="pm-track">
+        <div class="pm-fill ${m.cls}" style="width:${Math.round(m.val*100)}%"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">${m.desc}</div>
+    </div>
+  `).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PSYCHOMETRIC TREND CHART - DATE RANGE & GRANULARITY CONTROL
+══════════════════════════════════════════════════════════════ */
+function setDateRange() {
+  STATE.startDate = $('trendStartDate').value;
+  STATE.endDate = $('trendEndDate').value;
+  buildPsychoTrendChart();
+}
+
+function resetDateRange() {
+  const dates = Object.keys(STATE.allDaily).sort();
+  STATE.startDate = dates[0];
+  STATE.endDate = dates[dates.length-1];
+  $('trendStartDate').value = STATE.startDate;
+  $('trendEndDate').value = STATE.endDate;
+  buildPsychoTrendChart();
+}
+
+function setPsychoTrendWindow(key) {
+  STATE.psychoTrendWindow = key;
+  const btns = document.querySelectorAll('#psychoTrendCard .time-tabs .tab-btn');
+  btns.forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(key));
+  });
+  buildPsychoTrendChart();
+}
+
+function buildPsychoTrendChart() {
+  let rawTrendData;
+
+  if (STATE.psychoTrendWindow === 'daily') {
+    rawTrendData = STATE.dailyPsychometrics;
+  } else if (STATE.psychoTrendWindow === 'monthly') {
+    rawTrendData = STATE.monthlyPsychometrics;
+  } else {
+    rawTrendData = STATE.weeklyMetrics;
+  }
+
+  if (!rawTrendData) return;
+
+  let currentTrendData = rawTrendData;
+  if (STATE.startDate && STATE.endDate) {
+    const [sy, sm, sd] = STATE.startDate.split('-').map(Number);
+    const start = new Date(sy, sm-1, sd);
+
+    const [ey, em, ed] = STATE.endDate.split('-').map(Number);
+    const end = new Date(ey, em-1, ed, 23, 59, 59);
+
+    currentTrendData = rawTrendData.filter(item => {
+      let itemDate;
+      const itemStr = item.date || item.week || item.month;
+      if (STATE.psychoTrendWindow === 'weekly') {
+        const [year, weekNum] = itemStr.split('-W').map(Number);
+        itemDate = new Date(year, 0, 1 + (weekNum - 1) * 7);
+        const dayOfWeek = itemDate.getDay() || 7;
+        if (dayOfWeek !== 1) {
+          itemDate.setDate(itemDate.getDate() - (dayOfWeek - 1));
+        }
+      } else {
+        itemDate = new Date(itemStr + 'T00:00:00');
+      }
+      return itemDate >= start && itemDate <= end;
+    });
+  }
+
+  let labels = [];
+  if (STATE.psychoTrendWindow === 'daily') {
+    labels = currentTrendData.map(w => w.date.slice(5));
+  } else if (STATE.psychoTrendWindow === 'monthly') {
+    labels = currentTrendData.map(w => w.month);
+  } else {
+    labels = currentTrendData.map(w => w.week);
+  }
+
+  destroyChart('psychoTrendChart');
+  STATE.charts.psychoTrendChart = new Chart($('psychoTrendChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Curiosity',   data: currentTrendData.map(w=>w.curiosity*100),  borderColor:'#818cf8', backgroundColor:'rgba(129,140,248,.08)', tension:.4, pointRadius:2 },
+        { label: 'Political',   data: currentTrendData.map(w=>w.political*100),  borderColor:'#fb7185', backgroundColor:'rgba(251,113,133,.08)', tension:.4, pointRadius:2 },
+        { label: 'Escapism',    data: currentTrendData.map(w=>w.escapism*100),   borderColor:'#2dd4bf', backgroundColor:'rgba(45,212,191,.08)',  tension:.4, pointRadius:2 },
+        { label: 'Nocturnal',  data: currentTrendData.map(w=>w.late_night*100),borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,.08)',  tension:.4, pointRadius:2 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      scales: {
+        x: { ticks: { color:'#5a7090', font:{family:'DM Mono',size:9}, maxTicksLimit: STATE.psychoTrendWindow === 'daily' ? 10 : 12 }, grid:{color:'#111823'} },
+        y: { ticks: { color:'#5a7090', font:{family:'DM Mono',size:9}, callback: v=>v+'%' }, grid:{color:'#111823'}, min:0 }
+      },
+      plugins: {
+        legend: { labels:{color:'#dde4f0', font:{family:'DM Mono',size:10}, boxWidth:12, padding:16} },
+        tooltip: dsTooltip()
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEEPSEEK INSIGHT GENERATION
+══════════════════════════════════════════════════════════════ */
+async function generateInsight(type) {
+  const dsKey = CFG.dsKey || DEFAULT_DS_KEY;
+  if (dsKey.includes('YOUR_') || !dsKey) {
+    openSettings();
+    alert('Please configure your DeepSeek API key.');
+    return;
+  }
+  const wd = STATE.windowData;
+  const wm = STATE.weeklyMetrics;
+  const win = STATE.window;
+  const topCats = Object.entries(wd.cats).sort((a,b)=>b[1]-a[1]).slice(0,8)
+    .map(([k,v])=>`${k}: ${v} (${Math.round(100*v/wd.total)}%)`).join(', ');
+  const topChs  = Object.entries(wd.top_channels).slice(0,8)
+    .map(([k,v])=>`${k}(${v})`).join(', ');
+  const hrs     = wd.hrs;
+  const peakH   = Object.entries(hrs).sort((a,b)=>b[1]-a[1])[0];
+  const lateNight = Object.entries(hrs).filter(([h])=>parseInt(h)>=23||parseInt(h)<=4).reduce((s,[,v])=>s+v,0);
+  const lnPct   = Math.round(100*lateNight/wd.total);
+  const recentWm = wm.slice(-8);
+  const psychoSummary = recentWm.map(w =>
+    `${w.week}: curiosity=${Math.round(w.curiosity*100)}%, political=${Math.round(w.political*100)}%, escapism=${Math.round(w.escapism*100)}%, nocturnal=${Math.round(w.late_night*100)}%`
+  ).join('\n');
+  let prompt = '';
+  if (type === 'synopsis') {
+    prompt = `You are an expert behavioural data scientist and psychographer. Analyse the following YouTube viewing history summary and produce a rich, specific, intellectually substantive narrative insight report.
+
+TIME WINDOW: ${win === 'all' ? 'Full history (May–Dec 2025)' : win + ' days'}
+TOTAL VIDEOS: ${wd.total.toLocaleString()}
+ACTIVE DAYS: ${Object.keys(wd.daily_counts).length}
+
+CATEGORY DISTRIBUTION:
+${topCats}
+
+TOP CHANNELS (by views):
+${topChs}
+
+VIEWING TIME PATTERNS:
+Peak hour: ${peakH?.[0]}:00 (${peakH?.[1]} videos)
+Late-night viewing (11PM–4AM): ${lnPct}% of all viewing
+
+WEEKLY PSYCHOMETRIC TRENDS (recent):
+${psychoSummary}
+
+Write a 4–6 paragraph analytical report covering:
+1. Core intellectual interests and curiosity profile
+2. Emotional/psychological patterns inferred from content mix and timing
+3. Notable trends or shifts over time
+4. Behavioural anomalies or striking patterns
+5. A speculative "viewer archetype" characterisation
+
+Use concrete numbers from the data. Be incisive, not generic. Write in a sophisticated analytical voice. Avoid hedging clichés.`;
+  } else if (type === 'psychometric') {
+    prompt = `You are a cognitive psychologist and behavioural analyst. Based on the following YouTube viewing data, provide a deep psychometric analysis.
+
+CATEGORY MIX: ${topCats}
+TOP CHANNELS: ${topChs}
+LATE-NIGHT VIEWING: ${lnPct}% of sessions
+WEEKLY TRENDS: ${psychoSummary}
+
+Analyse:
+1. Big Five personality trait inferences (with reasoning from content)
+2. Cognitive style indicators (depth vs. breadth, convergent vs. divergent)  
+3. Emotional regulation patterns suggested by content and timing
+4. Intellectual curiosity domains and their intensity
+5. Potential stress or escapism indicators
+
+Be analytical, specific, and intellectually rigorous. Acknowledge the limits of inference from viewing data.`;
+  } else if (type === 'categories') {
+    const el = $('insightText');
+    el.innerHTML = 'Re-classifying "Other" category videos with DeepSeek…<span class="insight-cursor"></span>';
+    await classifyWithAI(STATE.records);
+    buildStateFromRecords(STATE.records);
+    setWindow(STATE.window);
+    el.innerHTML = '<strong>✓ Re-classification complete.</strong> Charts have been updated with AI-corrected categories.';
+    return;
+  }
+  const el = $('insightText');
+  el.innerHTML = '<span class="insight-cursor"></span>';
+  try {
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + dsKey
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        max_tokens: 1200,
+        stream: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'));
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line.slice(6));
+          const delta = json.choices?.[0]?.delta?.content || '';
+          fullText += delta;
+        } catch {}
+      }
+      el.innerHTML = mdLite(fullText) + '<span class="insight-cursor"></span>';
+    }
+    el.innerHTML = mdLite(fullText);
+  } catch(err) {
+    el.innerHTML = `<span style="color:var(--rose)">DeepSeek error: ${err.message}. Check your API key and network.</span>`;
+  }
+}
+
+function mdLite(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em style="color:var(--teal)">$1</em>')
+    .replace(/\n\n/g, '</p><p style="margin-top:12px">')
+    .replace(/\n/g, '<br>')
+    .replace(/^/, '<p>').replace(/$/, '</p>');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CHART UTILITIES
+══════════════════════════════════════════════════════════════ */
+function destroyChart(id) {
+  if (STATE.charts[id]) { STATE.charts[id].destroy(); delete STATE.charts[id]; }
+}
+function dsTooltip() {
+  return {
+    backgroundColor: '#17202e', borderColor: '#1e2d42', borderWidth: 1,
+    titleColor: '#e8a838', bodyColor: '#dde4f0', padding: 10,
+    titleFont: { family: 'DM Mono' }, bodyFont: { family: 'DM Mono', size: 11 }
+  };
+}
+function chartOpts({ yLabel = '' } = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend:{ display:false }, tooltip: dsTooltip() },
+    scales: {
+      x: { ticks: { color:'#5a7090', font:{family:'DM Mono',size:9} }, grid:{color:'#0d1117'}, border:{color:'#1e2d42'} },
+      y: { ticks: { color:'#5a7090', font:{family:'DM Mono',size:9} }, grid:{color:'#111823'}, border:{color:'#1e2d42'},
+           title: yLabel ? { display:true, text:yLabel, color:'#5a7090', font:{family:'DM Mono',size:9} } : undefined }
+    }
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DRAG-AND-DROP
+══════════════════════════════════════════════════════════════ */
+const fileDrop = $('fileDrop');
+fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.style.borderColor='var(--gold)'; });
+fileDrop.addEventListener('dragleave', () => { fileDrop.style.borderColor=''; });
+fileDrop.addEventListener('drop', e => {
+  e.preventDefault();
+  fileDrop.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const fakeEvt = { target: { files: [file] } };
+    handleFileUpload(fakeEvt);
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   MISC
+══════════════════════════════════════════════════════════════ */
+function resetApp() {
+  STATE = { records:[], window:'all', windowData:null, allDaily:{}, weeklyMetrics:[], dailyPsychometrics:[], monthlyPsychometrics:[], windows:{}, monthCounts:{}, total:0, userInfo:null, oauthToken:null, charts:{}, enrichedCount:0, sidecar:{} };
+  Object.values(STATE.charts||{}).forEach(c=>c?.destroy?.());
+  hide('dashScreen');
+  show('landing');
+  $('fileInput').value = '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+window.addEventListener('load', async () => {
+  if (!CFG.ytKey)   CFG.ytKey   = DEFAULT_YT_KEY;
+  if (!CFG.oauthId) CFG.oauthId = DEFAULT_OAUTH_ID;
+  if (!CFG.dsKey)   CFG.dsKey   = DEFAULT_DS_KEY;
+  const isMobileWebView = /Android.*Version\/[\d.]+.*Chrome|wv\)/.test(navigator.userAgent)
+    || window.location.protocol === 'file:'
+    || /Android|iPhone|iPad/.test(navigator.userAgent) && !window.location.hostname.includes('localhost');
+  if (isMobileWebView) {
+    const oauthSec = document.getElementById('oauthSection');
+    const mobileNote = document.getElementById('mobileNotice');
+    if (oauthSec) oauthSec.style.display = 'none';
+    if (mobileNote) mobileNote.style.display = 'block';
+  }
+  if (window.location.hash.includes('access_token')) {
+    loading(true, 'Authenticating with Google…', 5);
+    const handled = await handleOAuthCallback();
+    if (!handled) loading(false);
+  }
+});
+
+window.addEventListener('securitypolicyviolation', (e) => {
+  if (e.blockedURI && e.blockedURI.includes('google')) {
+    loading(false);
+    alert('OAuth blocked by browser security policy.\n\nFix: Open the file via http://localhost:8080 instead of directly.\n\nOr use the file upload option — no server needed.');
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   VPS API LAYER
+══════════════════════════════════════════════════════════════ */
+function vpsHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + (CFG.vpsToken || DEFAULT_VPS_TOKEN)
+  };
+}
+function vpsBase() {
+  return (CFG.vpsUrl || DEFAULT_VPS_URL).replace(/\/$/, '');
+}
+async function checkVPS() {
+  const chip = $('vpsStatusChip');
+  chip.className = 'status-chip chip-wait';
+  chip.textContent = '⬤ Checking…';
+  try {
+    const r = await fetch(vpsBase() + '/health', { signal: AbortSignal.timeout(5000) });
+    const data = await r.json();
+    if (data.status === 'ok') {
+      STATE.vpsOnline = true;
+      chip.className = 'status-chip chip-ok';
+      chip.textContent = `⬤ Online · ${data.cached_transcripts} cached`;
+    } else throw new Error('bad status');
+  } catch(e) {
+    STATE.vpsOnline = false;
+    chip.className = 'status-chip chip-err';
+    chip.textContent = '⬤ Offline — check URL/token';
+  }
+}
+async function pingVPS() {
+  $('vpsPingStatus').textContent = 'Checking…';
+  try {
+    const r = await fetch(vpsBase() + '/health', { signal: AbortSignal.timeout(5000) });
+    const data = await r.json();
+    $('vpsPingStatus').style.color = 'var(--lime)';
+    $('vpsPingStatus').textContent = `✓ Online · ${data.cached_transcripts} transcripts cached`;
+  } catch(e) {
+    $('vpsPingStatus').style.color = 'var(--rose)';
+    $('vpsPingStatus').textContent = '✗ Cannot reach VPS — check URL and firewall';
+  }
+}
+
+let selectedVideoIds = new Set();
+function renderVideoSelector() {
+  if (!STATE.records.length) return;
+  const filter  = $('txFilter').value;
+  const limit   = parseInt($('txLimit').value) || 20;
+  const list    = $('videoSelectorList');
+  let candidates = [];
+  if (filter === 'top_channels') {
+    const chCounts = {};
+    STATE.records.forEach(r => { chCounts[r.ch] = (chCounts[r.ch]||0)+1; });
+    const topChs = Object.entries(chCounts).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k])=>k);
+    candidates = STATE.records.filter(r => topChs.includes(r.ch));
+  } else if (filter === 'recent_30') {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
+    const cutStr = cutoff.toISOString().slice(0,10);
+    candidates = STATE.records.filter(r => r.date >= cutStr);
+  } else if (filter === 'recent_7') {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
+    const cutStr = cutoff.toISOString().slice(0,10);
+    candidates = STATE.records.filter(r => r.date >= cutStr);
+  } else {
+    candidates = STATE.records.filter(r => r.cat === 'Other');
+  }
+  const seen = new Set();
+  const unique = [];
+  for (const r of candidates) {
+    const vid = extractVideoId(r.url || '');
+    if (vid && !seen.has(vid)) { seen.add(vid); unique.push({...r, video_id: vid}); }
+    if (unique.length >= limit) break;
+  }
+  if (!unique.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--dim);font-size:12px">No videos match this filter.</div>';
+    return;
+  }
+  list.innerHTML = unique.map(r => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;
+                  border-bottom:1px solid var(--border);cursor:pointer;
+                  transition:background .1s" onmouseover="this.style.background='var(--s1)'"
+                  onmouseout="this.style.background=''">
+      <input type="checkbox" value="${r.video_id}"
+             ${selectedVideoIds.has(r.video_id)?'checked':''}
+             onchange="toggleVideo('${r.video_id}','${escHtml(r.title||'')}','${escHtml(r.ch||'')}',this)"
+             style="accent-color:var(--teal)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+             title="${escHtml(r.title||r.video_id)}">${escHtml(r.title||r.video_id)}</div>
+        <div style="font-size:10px;color:var(--dim)">${escHtml(r.ch)} · ${r.date}</div>
+      </div>
+      <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--s2);color:${catColor(r.cat)}">${r.cat}</span>
+      ${STATE.transcriptResults[r.video_id] ? '<span style="color:var(--lime);font-size:10px">✓</span>' : ''}
+    </label>
+  `).join('');
+  updateSelCount();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function catColor(cat) {
+  const m = {'Science':'#818cf8','History':'#f59e0b','Politics':'#fb7185',
+             'Technology':'#38bdf8','Food':'#f97316','Nature':'#84cc16','Other':'#334155'};
+  return m[cat] || '#334155';
+}
+const selectedMeta = {};
+function toggleVideo(vid, title, ch, checkbox) {
+  if (checkbox.checked) { selectedVideoIds.add(vid); selectedMeta[vid]={title,ch}; }
+  else selectedVideoIds.delete(vid);
+  updateSelCount();
+}
+function selectAllVideos() {
+  $('videoSelectorList').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = true;
+    const vid = cb.value;
+    selectedVideoIds.add(vid);
+    const label = cb.closest('label');
+    if (label) {
+      const title = label.querySelector('div > div:first-child')?.textContent?.trim() || '';
+      const sub   = label.querySelector('div > div:last-child')?.textContent?.split(' · ')[0]?.trim() || '';
+      selectedMeta[vid] = {title, ch: sub};
+    }
+  });
+  updateSelCount();
+}
+function clearSelection() {
+  selectedVideoIds.clear();
+  $('videoSelectorList').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  updateSelCount();
+}
+function updateSelCount() {
+  $('txSelCount').textContent = `${selectedVideoIds.size} selected`;
+}
+function extractVideoId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:v=|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+let pollInterval = null;
+async function submitTranscriptBatch() {
+  if (!selectedVideoIds.size) { alert('Select at least one video.'); return; }
+  if (STATE.vpsOnline === false) {
+    if (!confirm('VPS appears offline. Try anyway?')) return;
+  } else if (STATE.vpsOnline === null) {
+    await checkVPS();
+    if (!STATE.vpsOnline) { alert('Cannot reach VPS. Check URL and token in ⚙ settings.'); return; }
+  }
+  const analysisType = $('txAnalysisType').value;
+  const videos = [...selectedVideoIds].map(vid => ({
+    video_id: vid,
+    title: selectedMeta[vid]?.title || '',
+    channel: selectedMeta[vid]?.ch || ''
+  }));
+  $('txSubmitBtn').disabled = true;
+  $('txSubmitBtn').textContent = 'Submitting…';
+  try {
+    const r = await fetch(vpsBase() + '/batch/submit', {
+      method: 'POST',
+      headers: vpsHeaders(),
+      body: JSON.stringify({ videos, analysis_type: analysisType, use_cache: true })
+    });
+    const data = await r.json();
+    if (!data.job_id) throw new Error(data.detail || 'No job_id returned');
+    STATE.transcriptJobs[data.job_id] = { status: 'running', total: data.total };
+    $('txProgressCard').style.display = 'block';
+    $('txProgressText').textContent = `0 / ${data.total}`;
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(() => pollJob(data.job_id), 2500);
+  } catch(e) {
+    alert('Submission error: ' + e.message);
+  } finally {
+    $('txSubmitBtn').disabled = false;
+    $('txSubmitBtn').textContent = '⬆ Send to VPS';
+  }
+}
+async function pollJob(jobId) {
+  try {
+    const r = await fetch(vpsBase() + '/batch/status/' + jobId, { headers: vpsHeaders() });
+    const data = await r.json();
+    const pct = data.progress_pct || 0;
+    $('txProgressBar').style.width = pct + '%';
+    $('txProgressText').textContent = `${data.completed} / ${data.total} (${pct}%)`;
+    if (data.results && Object.keys(data.results).length) {
+      renderTranscriptResults(data.results);
+      Object.assign(STATE.transcriptResults, data.results);
+    }
+    if (data.status === 'complete') {
+      clearInterval(pollInterval);
+      $('txProgressText').textContent = `✓ Complete — ${data.total} videos processed`;
+      renderVideoSelector();
+    }
+  } catch(e) {
+    console.warn('Poll error:', e);
+  }
+}
+function renderTranscriptResults(results) {
+  const el = $('txResultsList');
+  el.innerHTML = Object.values(results).map(r => {
+    const a = r.analysis || {};
+    const t = r.transcript || {};
+    const hasTranscript = t.available;
+    const isFallback = a._fallback;
+    return `
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="${escHtml(r.title)}">${escHtml(r.title||r.video_id)}</span>
+        ${hasTranscript
+          ? `<span style="font-size:10px;color:var(--lime)">✓ ${t.word_count?.toLocaleString()} words</span>`
+          : `<span style="font-size:10px;color:var(--rose)">✗ ${escHtml(t.error||'No transcript')}</span>`}
+        ${isFallback ? '<span style="font-size:9px;color:var(--gold)">title-only</span>' : ''}
+      </div>
+      ${a.summary ? `<div style="font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:6px">${escHtml(a.summary)}</div>` : ''}
+      ${a.topics?.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${a.topics.map(t=>`<span style="font-size:9px;padding:2px 7px;border-radius:3px;background:var(--s2);color:var(--teal)">${escHtml(t)}</span>`).join('')}</div>` : ''}
+      ${a.category ? `<div style="font-size:10px;color:var(--gold);margin-top:4px">Category: ${escHtml(a.category)} (${Math.round((a.confidence||0)*100)}%)</div>` : ''}
+      ${a.tone ? `<div style="font-size:10px;color:var(--dim)">Tone: ${escHtml(a.tone)} · Complexity: ${a.complexity}/5</div>` : ''}
+      ${a.underlying_need ? `<div style="font-size:10px;color:var(--indigo)">Need: ${escHtml(a.underlying_need)} · Engagement: ${escHtml(a.cognitive_engagement)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+async function generateAggregateReport() {
+  if (!STATE.vpsOnline) { await checkVPS(); }
+  $('insightText').innerHTML = 'Generating aggregate report from VPS transcript cache…<span class="insight-cursor"></span>';
+  try {
+    const r = await fetch(vpsBase() + '/aggregate/insights?limit=100', {
+      headers: vpsHeaders()
+    });
+    const data = await r.json();
+    if (data.report) {
+      $('insightText').innerHTML = mdLite(data.report)
+        + `<div style="margin-top:12px;font-size:10px;color:var(--dim)">Based on ${data.videos_analysed} transcript analyses · ${data.tokens_used?.toLocaleString()} tokens</div>`;
+    } else {
+      $('insightText').textContent = data.detail || 'No analyses cached yet. Run transcript batch first.';
+    }
+  } catch(e) {
+    $('insightText').innerHTML = `<span style="color:var(--rose)">Error: ${e.message}</span>`;
+  }
+}
+</script>
+</body>
+</html>
